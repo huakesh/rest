@@ -1,0 +1,14 @@
+# Packages
+node_modules
+
+# Typescript
+dist/
+
+# Environment Variables
+.env
+
+# Tests
+coverage/
+
+# npm
+.npmrc
