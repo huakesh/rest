@@ -1,12 +1,14 @@
 import { OutgoingHttpHeaders } from 'http2';
-import https from 'https';
-import { FetchRequest, FetchResponse, HTTPMethods, InternalRequest, SUPPORTED_PROTOCOLS } from './constants';
+import https, { RequestOptions } from 'https';
+import { FetchRequest, FetchResponse, HTTPMethods, SUPPORTED_PROTOCOLS } from './constants';
 
 export interface RESTManagerOptions {
   /**
    * This will be the base URL for every API request
+   *
+   * **Default:** https://localhost:5000
    */
-  baseURL: string;
+  baseURL?: string;
 
   /**
    * These will be the headers present in every API request.
@@ -27,8 +29,8 @@ export default class RESTManager {
    */
   readonly baseHeaders?: OutgoingHttpHeaders;
 
-  constructor(options: RESTManagerOptions) {
-    this.baseURL = options.baseURL.replace(/\/$/, '');
+  constructor(options: RESTManagerOptions = {}) {
+    this.baseURL = (options.baseURL ?? 'https://localhost:5000').replace(/\/$/, '');
     const protocol = new URL(this.baseURL).protocol;
     if (!SUPPORTED_PROTOCOLS.includes(protocol)) {
       throw new Error(`Unsupported Protocol ${protocol}`);
@@ -36,23 +38,30 @@ export default class RESTManager {
     this.baseHeaders = options.baseHeaders;
   }
 
-  public get(request: Omit<FetchRequest, 'method'>) {
-    return this.fetch({
-      ...request,
-      method: HTTPMethods.GET,
-    });
-  }
-
+  /**
+   * Makes an REST API request and returns the response
+   * @param request The REST API request
+   * @returns The REST API response
+   */
   public fetch(request: FetchRequest) {
-    // TODO: Validate request
-    return this.internalFetch(this.convertToInternalRequest(request));
+    const internalRequest = this.convertToInternalRequest(request);
+    return this.internalFetch(internalRequest, request.data);
   }
 
-  private convertToInternalRequest(request: FetchRequest): InternalRequest {
+  /**
+   * Validates and converts the fetch request given by user to internal request
+   * Combines the base data to the user request, and converts to required format.
+   * @param request User Request
+   * @returns Internal Request
+   */
+  private convertToInternalRequest(request: FetchRequest): RequestOptions {
+    // TODO: Validate request
+    const url = new URL(this.baseURL + request.path);
     return {
+      hostname: url.hostname,
+      ...(!!url.port && { port: url.port }),
+      path: url.pathname + url.search,
       method: request.method ?? HTTPMethods.GET,
-      url: new URL(this.baseURL + request.path),
-      data: request.data,
       headers: {
         ...(!!request.data && { 'Content-Type': 'application/json' }),
         ...this.baseHeaders,
@@ -62,39 +71,35 @@ export default class RESTManager {
     };
   }
 
-  private internalFetch(request: InternalRequest): Promise<FetchResponse> {
+  /**
+   * Makes the actual REST API call and returns the response
+   * @param request Internal Request, this is assumed to be correct format.
+   * @returns API response
+   */
+  private internalFetch(request: RequestOptions, data?: string): Promise<FetchResponse> {
     return new Promise((resolve, reject) => {
-      const clientRequest = https.request(
-        {
-          hostname: request.url.hostname,
-          ...(!!request.url.port && { port: request.url.port }),
-          path: request.url.pathname + request.url.search,
-          method: request.method,
-          headers: request.headers,
-        },
-        (response) => {
-          const { headers, statusCode, statusMessage } = response;
-          if (!statusCode || !statusMessage) {
-            return reject(new Error('No status'));
+      const clientRequest = https.request(request, (response) => {
+        const { headers, statusCode, statusMessage } = response;
+        if (!statusCode || !statusMessage) {
+          return reject(new Error('No status'));
+        }
+        const status = {
+          code: statusCode,
+          message: statusMessage,
+        };
+        let data = '';
+        response.on('data', (chunk) => {
+          data += chunk;
+        });
+        response.on('end', () => {
+          if (!response.complete) {
+            return reject(new Error('Connection closed before complete data was received'));
           }
-          const status = {
-            code: statusCode,
-            message: statusMessage,
-          };
-          let data = '';
-          response.on('data', (chunk) => {
-            data += chunk;
-          });
-          response.on('end', () => {
-            if (!response.complete) {
-              return reject(new Error('Connection closed before complete data was received'));
-            }
-            resolve({ status, data, headers });
-          });
-        },
-      );
+          resolve({ status, data, headers });
+        });
+      });
       clientRequest.on('error', (err) => reject(err));
-      if (request.data) clientRequest.write(request.data);
+      if (data) clientRequest.write(data);
       clientRequest.end();
     });
   }

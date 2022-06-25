@@ -10,18 +10,11 @@ export enum HTTPMethods {
 
 export const SUPPORTED_PROTOCOLS = ['https:'];
 
-export interface InternalRequest {
-  url: URL;
-  method: HTTPMethods | keyof typeof HTTPMethods | string;
-  data?: string;
-  headers: OutgoingHttpHeaders;
-}
-
-type pathLike = `/${string}`;
+type PathLike = `/${string}`;
 
 export interface FetchRequest {
-  path: pathLike;
-  method?: HTTPMethods | keyof typeof HTTPMethods | string;
+  path: PathLike;
+  method?: HTTPMethods | keyof typeof HTTPMethods;
   data?: string;
   headers?: OutgoingHttpHeaders;
 }
