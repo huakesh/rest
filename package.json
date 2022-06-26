@@ -1,10 +1,12 @@
 {
   "name": "@huakesh/rest",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A manager to communicate with RESTful APIs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",
     "access": "public"
