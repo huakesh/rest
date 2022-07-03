@@ -1,4 +1,4 @@
-name: Node.js CI
+name: Tests
 
 on:
   push:
@@ -7,37 +7,27 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-    name: Build
-
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v3
-    - name: Use Node.js 16.13.1
-      uses: actions/setup-node@v3
-      with:
-        node-version: 16.13.1
-        cache: 'npm'
-    - run: npm ci
-    - run: npm run build
-
   lint:
     name: Lint
-
-    needs: build
-
     runs-on: ubuntu-latest
-
     steps:
-    - run: npm run lint
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-  test:
-    name: Test
+      - name: Use Node.js v16
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: 'npm'
 
-    needs: build
+      - name: Install dependencies
+        run: npm ci
 
-    runs-on: ubuntu-latest
+      - name: ESLint
+        run: npm run lint
 
-    steps:
-    - run: npm run test
+      - name: Tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
