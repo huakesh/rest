@@ -6,28 +6,88 @@ on:
   pull_request:
     branches: [ "main" ]
 
+env:
+  NODE_VERSION: 16.13.1
+
 jobs:
   lint:
-    name: Lint
+    name: ESLint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Use Node.js v16
+      - name: Use Node.js v${{ env.NODE_VERSION }}
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Load cached node_modules
+        id: cache-dependencies
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: node_modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies (if not cached)
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: ESLint
         run: npm run lint
 
+  test:
+    name: Jest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Use Node.js v${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Load cached node_modules
+        id: cache-dependencies
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: node_modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies (if not cached)
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: npm ci
+
       - name: Tests
         run: npm run test
+
+  build:
+    name: Build
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Use Node.js v${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Load cached node_modules
+        id: cache-dependencies
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: node_modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies (if not cached)
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: npm ci
 
       - name: Build
         run: npm run build
